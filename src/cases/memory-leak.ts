@@ -13,6 +13,21 @@ const BYTES_PER_CHUNK = CHUNK_LEN * 8;
 
 type LeakType = 'dom' | 'interval' | 'cache';
 
+// Which leak types start checked. Default: all off. Opt in via URL params on the
+// hash route, e.g. #/memory-leak?dom=1&cache=1 (or `all=1` for every type).
+function initialSelection(): Record<LeakType, boolean> {
+  const query = window.location.hash.split('?')[1] ?? '';
+  const params = new URLSearchParams(query);
+  const on = (key: string): boolean =>
+    ['1', 'true', 'on', 'yes'].includes((params.get(key) ?? '').toLowerCase());
+  const all = on('all');
+  return {
+    dom: all || on('dom'),
+    interval: all || on('interval'),
+    cache: all || on('cache'),
+  };
+}
+
 // Estimate the retained bytes for each leak type (for the stats table).
 function estimatedBytes(): Record<LeakType, number> {
   return {
@@ -89,9 +104,10 @@ const memoryLeak: Case = {
       </section>
 
       <div class="options">
-        <label><input type="checkbox" id="leak-dom" checked /> Detached DOM + listeners</label>
-        <label><input type="checkbox" id="leak-interval" checked /> Uncleared setInterval</label>
-        <label><input type="checkbox" id="leak-cache" checked /> Unbounded cache</label>
+        <label><input type="checkbox" id="leak-dom" /> Detached DOM + listeners</label>
+        <label><input type="checkbox" id="leak-interval" /> Uncleared setInterval</label>
+        <label><input type="checkbox" id="leak-cache" /> Unbounded cache</label>
+        <p class="hint">Preselect via URL, e.g. <code>#/memory-leak?dom=1&amp;cache=1</code> (<code>all=1</code> for every type).</p>
       </div>
 
       <section class="controls">
@@ -139,6 +155,11 @@ const memoryLeak: Case = {
     const intervalMb = stat('#stat-interval-mb');
     const cacheN = stat('#stat-cache-n');
     const cacheMb = stat('#stat-cache-mb');
+
+    const selection = initialSelection();
+    domBox.checked = selection.dom;
+    intervalBox.checked = selection.interval;
+    cacheBox.checked = selection.cache;
 
     const heapSupported = usedHeapBytes() !== null;
     if (!heapSupported) {
