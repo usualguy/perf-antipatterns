@@ -16,12 +16,12 @@ module.exports = (env, argv) => {
       clean: true,
     },
     resolve: {
-      extensions: ['.ts', '.js'],
+      extensions: ['.tsx', '.ts', '.js'],
     },
     module: {
       rules: [
         {
-          test: /\.ts$/,
+          test: /\.tsx?$/,
           use: 'ts-loader',
           exclude: /node_modules/,
         },

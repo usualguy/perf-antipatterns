@@ -301,6 +301,27 @@ table.header { margin-bottom: var(--line-height); }
 .controls { display: flex; align-items: center; gap: 1ch; flex-wrap: wrap; }
 .controls > * { margin-top: 0; }
 
+/* React demos */
+.demo {
+  border: var(--border-thickness) solid var(--text-color);
+  padding: calc(var(--line-height) - var(--border-thickness)) 1ch;
+}
+.demo h3 { margin-top: 0; text-transform: none; color: var(--text-color); }
+.inline-toggle { display: inline-flex; align-items: center; margin-top: 0; cursor: pointer; }
+.inline-toggle input { margin-top: 0; margin-right: 0.5ch; }
+.slider-row { margin: var(--line-height) 0; }
+.slider-row label { display: block; }
+.vlist {
+  border: var(--border-thickness) solid var(--text-color);
+  margin-top: var(--line-height);
+}
+.vrow {
+  padding: 0 1ch;
+  line-height: 22px;
+  border-bottom: 1px solid var(--background-color-alt);
+  white-space: nowrap;
+}
+
 .fps-bar {
   position: fixed;
   left: 0;
