@@ -120,7 +120,7 @@ function leakInterval(): void {
     // Math.sqrt (and several passes) keep the loop from being optimized away and
     // make each tick cost a couple of ms, so accumulated timers visibly janks.
     let sum = 0;
-    for (let pass = 0; pass < 8; pass++) {
+    for (let pass = 0; pass < workPasses; pass++) {
       for (let i = 0; i < buffer.length; i++) sum += Math.sqrt(buffer[i] + i);
     }
     void sum;
@@ -142,6 +142,11 @@ function freeAll(): void {
 
 let uiTimer = 0;
 let fpsRaf = 0;
+
+// CPU work each leaked timer does per tick (buffer passes). User-adjustable via
+// the impact slider so the jank can be tuned to the machine. Read live by every
+// leaked timer, so changing it affects timers already running.
+let workPasses = 8;
 
 const memoryLeak: Case = {
   id: 'memory-leak',
@@ -196,6 +201,11 @@ const memoryLeak: Case = {
         only grows &mdash; and the cost is not just memory. Leak with the timer type
         checked and watch these degrade:
       </p>
+      <div class="impact">
+        <label for="impact-range">Impact &mdash; CPU per timer tick: <span id="impact-val">8</span>&times;</label>
+        <input type="range" id="impact-range" min="1" max="24" value="8" />
+        <p class="hint">Turn it down on slower hardware, up on faster hardware to see jank sooner. Applies to timers already running.</p>
+      </div>
       <section class="panel stats-row">
         <div><div class="stat-num" id="c-fps">60</div><div class="stat-label">FPS (responsiveness)</div></div>
         <div><div class="stat-num" id="c-cps">0</div><div class="stat-label">Leaked timer calls/sec</div></div>
@@ -239,6 +249,16 @@ const memoryLeak: Case = {
     const intervalDetail = el<HTMLTableCellElement>('#stat-interval-detail');
     const cacheN = el<HTMLTableCellElement>('#stat-cache-n');
     const cacheDetail = el<HTMLTableCellElement>('#stat-cache-detail');
+
+    const impactRange = el<HTMLInputElement>('#impact-range');
+    const impactVal = el<HTMLSpanElement>('#impact-val');
+    // Reflect the persisted value (survives remounts) and keep it in sync.
+    impactRange.value = String(workPasses);
+    impactVal.textContent = String(workPasses);
+    impactRange.addEventListener('input', () => {
+      workPasses = Number(impactRange.value);
+      impactVal.textContent = String(workPasses);
+    });
 
     const cFps = el<HTMLDivElement>('#c-fps');
     const cCps = el<HTMLDivElement>('#c-cps');

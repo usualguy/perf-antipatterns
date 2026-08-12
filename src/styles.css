@@ -170,6 +170,16 @@ input, button {
   -webkit-appearance: none;
 }
 button:focus, input:focus { --border-thickness: 3px; outline: none; }
+input[type=range] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  height: var(--line-height);
+  width: calc(round(down, 100%, 1ch));
+  border: none;
+  padding: 0;
+  accent-color: var(--text-color);
+  cursor: pointer;
+}
 button {
   text-transform: uppercase;
   font-weight: var(--font-weight-medium);
@@ -265,6 +275,10 @@ table.header { margin-bottom: var(--line-height); }
   font-variant-numeric: tabular-nums;
 }
 .stat-label { color: var(--text-color-alt); text-transform: uppercase; }
+
+.impact { margin: var(--line-height) 0; }
+.impact label { display: block; }
+.impact input[type=range] { margin-top: calc(var(--line-height) / 2); }
 
 .meter { margin: var(--line-height) 0; }
 .meter-label { margin-bottom: calc(var(--line-height) / 2); }
