@@ -151,6 +151,8 @@ th, td {
   text-align: left;
 }
 th { font-weight: var(--font-weight-bold); }
+.width-min { width: 0%; }
+.width-auto { width: 100%; }
 
 /* ---- Form controls ---- */
 input, button {
@@ -202,8 +204,22 @@ input[type=checkbox]:checked:before {
 .options label input { margin-top: 0; margin-right: 1ch; }
 
 /* ---- App shell ---- */
-.header { margin-bottom: var(--line-height); }
-.subtitle { color: var(--text-color-alt); margin: 0; }
+table.header { margin-bottom: var(--line-height); }
+.header h1, .header .title {
+  margin: 0;
+  font-size: 2rem;
+  line-height: calc(2 * var(--line-height));
+  text-transform: uppercase;
+  font-weight: var(--font-weight-bold);
+}
+.header .subtitle {
+  display: block;
+  margin: 0;
+  color: var(--text-color-alt);
+  text-transform: none;
+  font-weight: var(--font-weight-normal);
+}
+.header tr td:last-child { text-align: right; }
 
 .nav {
   display: flex;
