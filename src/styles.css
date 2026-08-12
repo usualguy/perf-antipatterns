@@ -256,6 +256,16 @@ table.header { margin-bottom: var(--line-height); }
 }
 .hint { color: var(--text-color-alt); margin-bottom: 0; }
 
+.stats-row { display: flex; gap: 1ch; }
+.stats-row > * { flex: 1; margin-top: 0; }
+.stat-num {
+  font-size: 2rem;
+  line-height: calc(var(--line-height) * 2);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+.stat-label { color: var(--text-color-alt); text-transform: uppercase; }
+
 .controls { display: flex; align-items: center; gap: 1ch; flex-wrap: wrap; }
 .controls > * { margin-top: 0; }
 .controls input { width: 8ch; height: calc(var(--line-height) * 2); }

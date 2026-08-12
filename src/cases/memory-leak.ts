@@ -7,7 +7,11 @@ const leakedNodes: HTMLElement[] = []; // detached DOM subtrees + their listener
 const leakedIntervals: number[] = []; // uncleared timers, each retaining a buffer
 const leakedCache: Float64Array[] = []; // unbounded cache that never releases
 
-// Each Float64Array(500_000) is ~4 MB, so a step moves the heap visibly.
+// Each detached subtree is one root + this many children, one listener each.
+const CHILDREN_PER_SUBTREE = 5000;
+const NODES_PER_SUBTREE = CHILDREN_PER_SUBTREE + 1;
+
+// Each Float64Array(500_000) is exactly 4 MB, so a step moves the heap visibly.
 const CHUNK_LEN = 500_000;
 const BYTES_PER_CHUNK = CHUNK_LEN * 8;
 
@@ -28,16 +32,30 @@ function initialSelection(): Record<LeakType, boolean> {
   };
 }
 
-// Estimate the retained bytes for each leak type (for the stats table).
-function estimatedBytes(): Record<LeakType, number> {
+// Exact counters, computed from what the demo actually retains. Unlike the
+// browser heap below, these are precise and match what you'd see in the
+// DevTools Performance monitor (DOM Nodes / JS event listeners).
+interface Metrics {
+  nodes: number;
+  listeners: number;
+  timers: number;
+  bufferBytes: number; // exact: only Float64Arrays we allocated
+  heapBytes: number | null; // approximate, browser-reported, may be null
+}
+
+function metrics(): Metrics {
+  const subtrees = leakedNodes.length;
   return {
-    // ~5000 nodes per subtree; rough per-node cost is hard to know, so estimate.
-    dom: leakedNodes.length * 5000 * 200,
-    interval: leakedIntervals.length * BYTES_PER_CHUNK,
-    cache: leakedCache.length * BYTES_PER_CHUNK,
+    nodes: subtrees * NODES_PER_SUBTREE,
+    listeners: subtrees * CHILDREN_PER_SUBTREE,
+    timers: leakedIntervals.length,
+    bufferBytes: (leakedIntervals.length + leakedCache.length) * BYTES_PER_CHUNK,
+    heapBytes: usedHeapBytes(),
   };
 }
 
+// performance.memory is non-standard, deprecated, and quantized for privacy —
+// it lags and will NOT match DevTools. Shown only as a rough trend.
 function usedHeapBytes(): number | null {
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   return mem ? mem.usedJSHeapSize : null;
@@ -47,10 +65,14 @@ function mb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1);
 }
 
+function count(n: number): string {
+  return n.toLocaleString();
+}
+
 // ---- Leak steps ------------------------------------------------------------
 function leakDom(): void {
   const subtree = document.createElement('div');
-  for (let i = 0; i < 5000; i++) {
+  for (let i = 0; i < CHILDREN_PER_SUBTREE; i++) {
     const child = document.createElement('div');
     child.textContent = 'leak';
     // A listener that closes over `subtree` keeps the whole tree reachable.
@@ -97,11 +119,18 @@ const memoryLeak: Case = {
       <h2>${memoryLeak.title}</h2>
       <p>${memoryLeak.description}</p>
 
-      <section class="panel">
-        <h3>Live JS heap</h3>
-        <div class="heartbeat" id="heap">&mdash;</div>
-        <p class="hint" id="heap-note">Updated continuously. Click <strong>Leak more</strong> and watch it climb; <strong>Reset</strong> frees the references so the GC can reclaim them.</p>
+      <section class="panel stats-row">
+        <div><div class="stat-num" id="m-nodes">0</div><div class="stat-label">Detached nodes</div></div>
+        <div><div class="stat-num" id="m-listeners">0</div><div class="stat-label">Listeners</div></div>
+        <div><div class="stat-num" id="m-timers">0</div><div class="stat-label">Timers</div></div>
+        <div><div class="stat-num" id="m-buffers">0.0</div><div class="stat-label">Buffer MB</div></div>
       </section>
+      <p class="hint" id="heap-note">
+        These are counted exactly from what the demo retains &mdash; they match the DevTools
+        Performance monitor. Browser heap (<code>performance.memory</code>):
+        <span id="m-heap">&mdash;</span>, shown only as a rough trend &mdash; it is deprecated
+        and quantized, so it lags and will not match the DevTools Memory panel.
+      </p>
 
       <div class="options">
         <label><input type="checkbox" id="leak-dom" /> Detached DOM + listeners</label>
@@ -117,12 +146,12 @@ const memoryLeak: Case = {
 
       <table>
         <thead>
-          <tr><th class="width-auto">Leak type</th><th>Retained</th><th>Est. MB</th></tr>
+          <tr><th class="width-auto">Leak type</th><th>Steps</th><th>Retained</th></tr>
         </thead>
         <tbody>
-          <tr><th>Detached DOM</th><td id="stat-dom-n"></td><td id="stat-dom-mb"></td></tr>
-          <tr><th>setInterval</th><td id="stat-interval-n"></td><td id="stat-interval-mb"></td></tr>
-          <tr><th>Cache</th><td id="stat-cache-n"></td><td id="stat-cache-mb"></td></tr>
+          <tr><th>Detached DOM</th><td id="stat-dom-n">0</td><td id="stat-dom-detail">&mdash;</td></tr>
+          <tr><th>setInterval</th><td id="stat-interval-n">0</td><td id="stat-interval-detail">&mdash;</td></tr>
+          <tr><th>Cache</th><td id="stat-cache-n">0</td><td id="stat-cache-detail">&mdash;</td></tr>
         </tbody>
       </table>
 
@@ -140,46 +169,47 @@ const memoryLeak: Case = {
       </ul>
     `;
 
-    const heapEl = container.querySelector<HTMLDivElement>('#heap')!;
-    const noteEl = container.querySelector<HTMLParagraphElement>('#heap-note')!;
-    const domBox = container.querySelector<HTMLInputElement>('#leak-dom')!;
-    const intervalBox = container.querySelector<HTMLInputElement>('#leak-interval')!;
-    const cacheBox = container.querySelector<HTMLInputElement>('#leak-cache')!;
-    const moreBtn = container.querySelector<HTMLButtonElement>('#leak-more')!;
-    const resetBtn = container.querySelector<HTMLButtonElement>('#leak-reset')!;
+    const el = <T extends HTMLElement>(sel: string): T =>
+      container.querySelector<T>(sel)!;
 
-    const stat = (id: string) => container.querySelector<HTMLTableCellElement>(id)!;
-    const domN = stat('#stat-dom-n');
-    const domMb = stat('#stat-dom-mb');
-    const intervalN = stat('#stat-interval-n');
-    const intervalMb = stat('#stat-interval-mb');
-    const cacheN = stat('#stat-cache-n');
-    const cacheMb = stat('#stat-cache-mb');
+    const mNodes = el<HTMLDivElement>('#m-nodes');
+    const mListeners = el<HTMLDivElement>('#m-listeners');
+    const mTimers = el<HTMLDivElement>('#m-timers');
+    const mBuffers = el<HTMLDivElement>('#m-buffers');
+    const mHeap = el<HTMLSpanElement>('#m-heap');
+
+    const domBox = el<HTMLInputElement>('#leak-dom');
+    const intervalBox = el<HTMLInputElement>('#leak-interval');
+    const cacheBox = el<HTMLInputElement>('#leak-cache');
+    const moreBtn = el<HTMLButtonElement>('#leak-more');
+    const resetBtn = el<HTMLButtonElement>('#leak-reset');
+
+    const domN = el<HTMLTableCellElement>('#stat-dom-n');
+    const domDetail = el<HTMLTableCellElement>('#stat-dom-detail');
+    const intervalN = el<HTMLTableCellElement>('#stat-interval-n');
+    const intervalDetail = el<HTMLTableCellElement>('#stat-interval-detail');
+    const cacheN = el<HTMLTableCellElement>('#stat-cache-n');
+    const cacheDetail = el<HTMLTableCellElement>('#stat-cache-detail');
 
     const selection = initialSelection();
     domBox.checked = selection.dom;
     intervalBox.checked = selection.interval;
     cacheBox.checked = selection.cache;
 
-    const heapSupported = usedHeapBytes() !== null;
-    if (!heapSupported) {
-      noteEl.innerHTML =
-        'Your browser does not expose <code>performance.memory</code> (Chrome only), so this shows the <em>estimated</em> leaked total instead. Behaviour is identical.';
-    }
-
     const refresh = () => {
-      const est = estimatedBytes();
-      const heap = usedHeapBytes();
-      heapEl.textContent = heap !== null
-        ? `${mb(heap)} MB`
-        : `~${mb(est.dom + est.interval + est.cache)} MB`;
+      const m = metrics();
+      mNodes.textContent = count(m.nodes);
+      mListeners.textContent = count(m.listeners);
+      mTimers.textContent = count(m.timers);
+      mBuffers.textContent = mb(m.bufferBytes);
+      mHeap.textContent = m.heapBytes !== null ? `${mb(m.heapBytes)} MB` : 'unavailable';
 
-      domN.textContent = String(leakedNodes.length);
-      domMb.textContent = mb(est.dom);
-      intervalN.textContent = String(leakedIntervals.length);
-      intervalMb.textContent = mb(est.interval);
-      cacheN.textContent = String(leakedCache.length);
-      cacheMb.textContent = mb(est.cache);
+      domN.textContent = count(leakedNodes.length);
+      domDetail.textContent = `${count(m.nodes)} nodes, ${count(m.listeners)} listeners`;
+      intervalN.textContent = count(leakedIntervals.length);
+      intervalDetail.textContent = `${mb(leakedIntervals.length * BYTES_PER_CHUNK)} MB`;
+      cacheN.textContent = count(leakedCache.length);
+      cacheDetail.textContent = `${mb(leakedCache.length * BYTES_PER_CHUNK)} MB`;
     };
 
     moreBtn.addEventListener('click', () => {
