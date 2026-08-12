@@ -177,6 +177,30 @@ button:hover { background: var(--background-color-alt); }
 button:active { transform: translate(2px, 2px); }
 label { font-weight: var(--font-weight-medium); }
 
+input[type=checkbox] {
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  width: 2ch;
+  height: var(--line-height);
+  padding: 0;
+  cursor: pointer;
+}
+input[type=checkbox]:checked:before {
+  content: "";
+  width: 1ch;
+  height: calc(var(--line-height) / 2);
+  background: var(--text-color);
+}
+
+.options { margin: var(--line-height) 0; }
+.options label {
+  display: block;
+  margin-top: 0;
+  cursor: pointer;
+}
+.options label input { margin-top: 0; margin-right: 1ch; }
+
 /* ---- App shell ---- */
 .header { margin-bottom: var(--line-height); }
 .subtitle { color: var(--text-color-alt); margin: 0; }
