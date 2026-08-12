@@ -266,6 +266,20 @@ table.header { margin-bottom: var(--line-height); }
 }
 .stat-label { color: var(--text-color-alt); text-transform: uppercase; }
 
+.meter { margin: var(--line-height) 0; }
+.meter-label { margin-bottom: calc(var(--line-height) / 2); }
+.meter-track {
+  border: var(--border-thickness) solid var(--text-color);
+  height: var(--line-height);
+  padding: 2px;
+}
+.meter-fill {
+  background: var(--text-color);
+  height: 100%;
+  width: 0;
+  transition: width 0.2s linear;
+}
+
 .controls { display: flex; align-items: center; gap: 1ch; flex-wrap: wrap; }
 .controls > * { margin-top: 0; }
 .controls input { width: 8ch; height: calc(var(--line-height) * 2); }
