@@ -37,8 +37,8 @@ app.innerHTML = `
   <hr />
   <main id="content"></main>
   <div class="fps-bar" aria-hidden="true">
-    <canvas id="ball-canvas"></canvas>
-    <span class="fps-badge"><span id="ball-fps">60</span> FPS &mdash; main-thread health</span>
+    <canvas id="fps-canvas"></canvas>
+    <span class="fps-badge"><span id="fps-value">60</span> FPS &mdash; main thread</span>
   </div>
 `;
 
@@ -51,17 +51,17 @@ startRouter(content, (active) => {
   }
 });
 
-startBall(
-  document.getElementById('ball-canvas') as HTMLCanvasElement,
-  document.getElementById('ball-fps')!,
+startFpsGraph(
+  document.getElementById('fps-canvas') as HTMLCanvasElement,
+  document.getElementById('fps-value')!,
 );
 
-interface BallColors {
+interface GraphColors {
   fg: string;
   dim: string;
 }
 
-function readColors(): BallColors {
+function readColors(): GraphColors {
   const cs = getComputedStyle(document.documentElement);
   return {
     fg: cs.getPropertyValue('--text-color').trim() || '#000',
@@ -69,10 +69,10 @@ function readColors(): BallColors {
   };
 }
 
-// A global bouncing-ball indicator drawn on a fixed <canvas>. It animates on
-// requestAnimationFrame with wall-clock physics, so a blocked main thread makes
-// it freeze then jump (frames lost) and jank makes it stutter — a live FPS gauge.
-function startBall(canvas: HTMLCanvasElement, fpsEl: HTMLElement): void {
+// A global scrolling FPS graph drawn on a fixed <canvas>. It samples the frame
+// rate on every requestAnimationFrame, so a blocked main thread shows up as a
+// gap/dip (frames lost) and jank as a lower, noisier line — a live FPS gauge.
+function startFpsGraph(canvas: HTMLCanvasElement, fpsEl: HTMLElement): void {
   const ctx = canvas.getContext('2d')!;
   let colors = readColors();
   window
@@ -92,51 +92,70 @@ function startBall(canvas: HTMLCanvasElement, fpsEl: HTMLElement): void {
   resize();
   window.addEventListener('resize', resize);
 
-  const start = performance.now();
-  let last = start;
-  let fps = 60;
+  const MAX_FPS = 70; // top of the graph's y-scale (a little above 60)
+  const PAD = 3; // vertical padding
+  const samples: number[] = []; // one instantaneous FPS per frame, newest last
+  let last = performance.now();
+  let ema = 60;
+
+  const yFor = (fps: number) => {
+    const clamped = Math.max(0, Math.min(MAX_FPS, fps));
+    return cssH - PAD - (clamped / MAX_FPS) * (cssH - PAD * 2);
+  };
 
   const frame = (now: number) => {
     const dt = now - last;
     last = now;
-    if (dt > 0) fps = fps * 0.9 + (1000 / dt) * 0.1;
+    const inst = dt > 0 ? 1000 / dt : 60;
+    ema = ema * 0.9 + inst * 0.1;
 
-    const t = (now - start) / 1000;
-    const r = Math.max(6, cssH * 0.16);
-    const groundY = cssH - 5;
-    const topY = r + 3;
-    const restY = groundY - r;
-    const bounce = Math.abs(Math.sin(t * 3.2)); // 0 on ground, 1 at apex
-    const y = restY - (restY - topY) * bounce;
-    const phase = (t % 6) / 6; // horizontal sweep, 6s there-and-back
-    const tri = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    const x = r + (cssW - 2 * r) * tri;
+    samples.push(inst);
+    const cols = Math.max(2, Math.floor(cssW));
+    while (samples.length > cols) samples.shift();
+    const n = samples.length;
+    const x0 = cssW - n; // newest on the right, oldest on the left
 
     ctx.clearRect(0, 0, cssW, cssH);
 
-    // Ground line.
+    // Reference gridlines at 30 and 60 fps.
     ctx.strokeStyle = colors.dim;
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, groundY + 0.5);
-    ctx.lineTo(cssW, groundY + 0.5);
-    ctx.stroke();
-
-    // Shadow: smaller and fainter as the ball rises.
-    ctx.globalAlpha = 0.3 * (1 - bounce * 0.7);
-    ctx.fillStyle = colors.dim;
-    ctx.beginPath();
-    ctx.ellipse(x, groundY, r * (1 - 0.4 * bounce), r * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.globalAlpha = 0.35;
+    for (const g of [30, 60]) {
+      const y = Math.round(yFor(g)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(cssW, y);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
 
-    // Ball.
-    ctx.fillStyle = colors.fg;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    if (n > 1) {
+      // Filled area under the curve.
+      ctx.beginPath();
+      ctx.moveTo(x0, cssH);
+      for (let i = 0; i < n; i++) ctx.lineTo(x0 + i, yFor(samples[i]));
+      ctx.lineTo(x0 + n - 1, cssH);
+      ctx.closePath();
+      ctx.fillStyle = colors.dim;
+      ctx.globalAlpha = 0.18;
+      ctx.fill();
+      ctx.globalAlpha = 1;
 
-    fpsEl.textContent = String(Math.round(fps));
+      // The FPS line.
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = x0 + i;
+        const y = yFor(samples[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = colors.fg;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    fpsEl.textContent = String(Math.round(ema));
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
