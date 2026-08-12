@@ -92,8 +92,10 @@ function startFpsGraph(canvas: HTMLCanvasElement, fpsEl: HTMLElement): void {
   resize();
   window.addEventListener('resize', resize);
 
-  const MAX_FPS = 70; // top of the graph's y-scale (a little above 60)
-  const PAD = 3; // vertical padding
+  const MAX_FPS = 65; // top of the graph's y-scale (just above 60)
+  const BAD_FPS = 30; // below this the line/badge turn red
+  const RED = '#ff5b5b';
+  const PAD = 4; // vertical padding
   const samples: number[] = []; // one instantaneous FPS per frame, newest last
   let last = performance.now();
   let ema = 60;
@@ -142,20 +144,27 @@ function startFpsGraph(canvas: HTMLCanvasElement, fpsEl: HTMLElement): void {
       ctx.fill();
       ctx.globalAlpha = 1;
 
-      // The FPS line.
-      ctx.beginPath();
-      for (let i = 0; i < n; i++) {
-        const x = x0 + i;
-        const y = yFor(samples[i]);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      // The FPS line, drawn per-segment so dips below 30 fps turn red.
+      ctx.lineWidth = 2;
+      for (let i = 1; i < n; i++) {
+        const bad = samples[i] < BAD_FPS || samples[i - 1] < BAD_FPS;
+        ctx.strokeStyle = bad ? RED : colors.fg;
+        ctx.beginPath();
+        ctx.moveTo(x0 + i - 1, yFor(samples[i - 1]));
+        ctx.lineTo(x0 + i, yFor(samples[i]));
+        ctx.stroke();
       }
-      ctx.strokeStyle = colors.fg;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+
+      // Current-value dot on the right edge.
+      const cur = samples[n - 1];
+      ctx.fillStyle = cur < BAD_FPS ? RED : colors.fg;
+      ctx.beginPath();
+      ctx.arc(cssW - 1, yFor(cur), 2.5, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     fpsEl.textContent = String(Math.round(ema));
+    fpsEl.style.color = ema < BAD_FPS ? RED : '';
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
