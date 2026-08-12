@@ -322,6 +322,17 @@ table.header { margin-bottom: var(--line-height); }
   white-space: nowrap;
 }
 
+/* PixiJS case */
+.scenario-nav { display: flex; flex-wrap: wrap; gap: 1ch; margin: var(--line-height) 0; }
+.scenario-nav > * { margin-top: 0; }
+.scenario-nav button.active { background: var(--text-color); color: var(--background-color); }
+.pixi-canvas {
+  border: var(--border-thickness) solid var(--text-color);
+  line-height: 0;
+  margin-top: var(--line-height);
+}
+.pixi-canvas canvas { display: block; max-width: 100%; height: auto; }
+
 .fps-bar {
   position: fixed;
   left: 0;
