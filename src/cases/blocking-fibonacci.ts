@@ -10,20 +10,20 @@ function fib(n: number): number {
 let rafId = 0;
 
 const blockingFibonacci: Case = {
-  id: 'blocking-fibonacci',
-  title: 'Blocking Fibonacci',
+  id: 'blocking-cpu',
+  title: 'Blocking CPU',
   description:
     'A heavy synchronous computation runs in a single tick, freezing the main thread so the UI cannot paint or respond.',
 
   mount(container) {
     container.innerHTML = `
-      <h1>${blockingFibonacci.title}</h1>
-      <p class="lead">${blockingFibonacci.description}</p>
+      <h2>${blockingFibonacci.title}</h2>
+      <p>${blockingFibonacci.description}</p>
 
-      <section class="live-indicator">
-        <p>Live main-thread heartbeat (updated every animation frame):</p>
+      <section class="panel">
+        <h3>Live main-thread heartbeat</h3>
         <div class="heartbeat" id="heartbeat">0</div>
-        <p class="hint">Watch this counter freeze the moment you press Run — that stall is the blocked main thread.</p>
+        <p class="hint">Updated every animation frame. Watch it freeze the moment you press Run &mdash; that stall is the blocked main thread.</p>
       </section>
 
       <section class="controls">
@@ -32,25 +32,25 @@ const blockingFibonacci: Case = {
         <button id="fib-run" type="button">Run (blocking)</button>
       </section>
 
-      <section class="result" id="fib-result" hidden>
-        <div><strong>Result:</strong> <span id="fib-value"></span></div>
-        <div><strong>Elapsed:</strong> <span id="fib-elapsed"></span> ms</div>
-      </section>
+      <table id="fib-result" hidden>
+        <tbody>
+          <tr><th>Result</th><td id="fib-value"></td></tr>
+          <tr><th>Elapsed</th><td><span id="fib-elapsed"></span> ms</td></tr>
+        </tbody>
+      </table>
 
-      <section class="explain">
-        <h2>Why this is an antipattern</h2>
-        <p>
-          JavaScript runs on a single main thread shared with layout, paint, and input
-          handling. A long synchronous task blocks all of them — the page appears frozen
-          until it finishes.
-        </p>
-        <h2>How you'd fix it</h2>
-        <ul>
-          <li><strong>Memoize / better algorithm:</strong> iterative Fibonacci is O(n).</li>
-          <li><strong>Chunk the work:</strong> break it across ticks with <code>setTimeout</code> / <code>requestIdleCallback</code>.</li>
-          <li><strong>Offload it:</strong> run heavy compute in a Web Worker, off the main thread.</li>
-        </ul>
-      </section>
+      <h2>Why this is an antipattern</h2>
+      <p>
+        JavaScript runs on a single main thread shared with layout, paint, and input
+        handling. A long synchronous task blocks all of them &mdash; the page appears frozen
+        until it finishes.
+      </p>
+      <h2>How you'd fix it</h2>
+      <ul>
+        <li><strong>Memoize / better algorithm:</strong> iterative Fibonacci is O(n).</li>
+        <li><strong>Chunk the work:</strong> break it across ticks with <code>setTimeout</code> / <code>requestIdleCallback</code>.</li>
+        <li><strong>Offload it:</strong> run heavy compute in a Web Worker, off the main thread.</li>
+      </ul>
     `;
 
     const heartbeat = container.querySelector<HTMLDivElement>('#heartbeat')!;
