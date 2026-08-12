@@ -66,6 +66,8 @@ html {
 }
 
 body {
+  /* Disable iOS double-tap-to-zoom (keeps pinch-zoom for accessibility). */
+  touch-action: manipulation;
   position: relative;
   width: 100%;
   margin: 0;
