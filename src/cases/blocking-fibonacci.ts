@@ -10,8 +10,8 @@ function fib(n: number): number {
 let rafId = 0;
 
 const blockingFibonacci: Case = {
-  id: 'blocking-cpu',
-  title: 'Blocking CPU',
+  id: 'long-task',
+  title: 'Long Task',
   description:
     'A heavy synchronous computation runs in a single tick, freezing the main thread so the UI cannot paint or respond.',
 
