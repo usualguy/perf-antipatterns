@@ -296,4 +296,14 @@ table.header { margin-bottom: var(--line-height); }
 
 .controls { display: flex; align-items: center; gap: 1ch; flex-wrap: wrap; }
 .controls > * { margin-top: 0; }
+
+.ball-footer { margin-top: calc(var(--line-height) * 2); }
+.ball-caption { color: var(--text-color-alt); }
+.ball-stage {
+  white-space: pre;
+  line-height: var(--line-height);
+  margin-top: var(--line-height);
+  overflow-x: auto;
+  font-variant-numeric: normal;
+}
 .controls input { width: 8ch; height: calc(var(--line-height) * 2); }
