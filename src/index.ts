@@ -8,7 +8,7 @@ app.innerHTML = `
   <table class="header">
     <tbody>
       <tr>
-        <td class="width-auto" rowspan="3">
+        <td class="width-auto" rowspan="4">
           <h1 class="title">Perf Antipatterns</h1>
           <span class="subtitle">Interactive frontend performance antipatterns.</span>
         </td>
@@ -22,6 +22,10 @@ app.innerHTML = `
       <tr>
         <th class="width-min">License</th>
         <td class="width-min">MIT</td>
+      </tr>
+      <tr>
+        <th class="width-min">Source</th>
+        <td class="width-min"><a href="https://github.com/usualguy/perf-antipatterns">GitHub</a></td>
       </tr>
     </tbody>
   </table>

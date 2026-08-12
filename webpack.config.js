@@ -10,6 +10,9 @@ module.exports = (env, argv) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename: '[name].[contenthash].js',
+      // Relative so the app works under a GitHub Pages project subpath
+      // (e.g. /perf-antipatterns/) as well as at the domain root.
+      publicPath: isProduction ? './' : '/',
       clean: true,
     },
     resolve: {
