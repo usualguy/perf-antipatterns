@@ -51,10 +51,13 @@ startRouter(content, (active) => {
   }
 });
 
-startFpsGraph(
-  document.getElementById('fps-canvas') as HTMLCanvasElement,
-  document.getElementById('fps-value')!,
-);
+{
+  const fpsCanvas = document.getElementById('fps-canvas') as HTMLCanvasElement;
+  const fpsValue = document.getElementById('fps-value')!;
+  // Prefer rendering the graph in a worker (OffscreenCanvas) so it keeps
+  // drawing even when the main thread is blocked; fall back to main-thread.
+  if (!startFpsGraphWorker(fpsCanvas, fpsValue)) startFpsGraph(fpsCanvas, fpsValue);
+}
 
 interface GraphColors {
   fg: string;
@@ -67,6 +70,61 @@ function readColors(): GraphColors {
     fg: cs.getPropertyValue('--text-color').trim() || '#000',
     dim: cs.getPropertyValue('--text-color-alt').trim() || '#666',
   };
+}
+
+// Move the graph off the main thread: transfer an OffscreenCanvas to a worker
+// and feed it one frame-delta per rAF. Returns false if unsupported.
+function startFpsGraphWorker(canvas: HTMLCanvasElement, fpsEl: HTMLElement): boolean {
+  if (typeof canvas.transferControlToOffscreen !== 'function' || typeof Worker === 'undefined') {
+    return false;
+  }
+  let offscreen: OffscreenCanvas;
+  try {
+    offscreen = canvas.transferControlToOffscreen();
+  } catch {
+    return false;
+  }
+
+  const worker = new Worker(new URL('./fps-worker.ts', import.meta.url));
+  const dprOf = () => window.devicePixelRatio || 1;
+
+  worker.postMessage(
+    {
+      type: 'init',
+      canvas: offscreen,
+      cssW: canvas.clientWidth,
+      cssH: canvas.clientHeight,
+      dpr: dprOf(),
+      colors: readColors(),
+    },
+    [offscreen],
+  );
+
+  // One message per animation frame carrying the main-thread frame delta. When
+  // the main thread is blocked these stop, and the worker draws the stall.
+  let last = performance.now();
+  const tick = (now: number) => {
+    worker.postMessage({ type: 'tick', dt: now - last });
+    last = now;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+
+  window.addEventListener('resize', () =>
+    worker.postMessage({ type: 'resize', cssW: canvas.clientWidth, cssH: canvas.clientHeight, dpr: dprOf() }),
+  );
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => worker.postMessage({ type: 'colors', colors: readColors() }));
+
+  worker.onmessage = (e: MessageEvent) => {
+    const d = e.data as { type?: string; value?: number };
+    if (d && d.type === 'fps' && typeof d.value === 'number') {
+      fpsEl.textContent = String(d.value);
+      fpsEl.style.color = d.value < 30 ? '#ff5b5b' : '';
+    }
+  };
+  return true;
 }
 
 // A global scrolling FPS graph drawn on a fixed <canvas>. It samples the frame
